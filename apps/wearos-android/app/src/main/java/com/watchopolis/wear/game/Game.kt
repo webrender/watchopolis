@@ -34,7 +34,7 @@ class Game {
     var hud by mutableStateOf(Hud())
         private set
 
-    var currentCity: String = ""
+    var currentCity: String by mutableStateOf("")
         private set
 
     private var started = false

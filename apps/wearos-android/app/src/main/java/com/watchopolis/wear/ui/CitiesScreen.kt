@@ -56,12 +56,14 @@ fun CitiesScreen(
             colors = ChipDefaults.primaryChipColors(),
             modifier = Modifier.fillMaxWidth(),
         )
-        Chip(
-            onClick = { game.saveGame(context); saved = true },
-            label = { Text(if (saved) "Saved ✓" else "Save game") },
-            colors = ChipDefaults.secondaryChipColors(),
-            modifier = Modifier.fillMaxWidth(),
-        )
+        if (game.currentCity.isNotEmpty()) {
+            Chip(
+                onClick = { game.saveGame(context); saved = true },
+                label = { Text(if (saved) "Saved ✓" else "Save game") },
+                colors = ChipDefaults.secondaryChipColors(),
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
         if (hasSave) {
             Chip(
                 onClick = { game.loadSaved(context); onLoaded() },

@@ -61,7 +61,7 @@ private fun MicropolisApp() {
     val game = remember { Game() }
     val soundManager = remember { SoundManager(context) }
     val lifecycleOwner = LocalLifecycleOwner.current
-    var screen by remember { mutableStateOf(Screen.Map) }
+    var screen by remember { mutableStateOf(Screen.Cities) }
     var message by remember { mutableStateOf<String?>(null) }
 
     // Auto-dismiss the transient message banner.
@@ -93,7 +93,6 @@ private fun MicropolisApp() {
     LaunchedEffect(game) {
         game.engine.soundListener = { _, sound, _, _ -> soundManager.play(sound) }
         game.engine.messageListener = { idx, _, _ -> MessageText.of(idx)?.let { message = it } }
-        game.start(context, "haight.cty")
         // Only tick while the app is actually on-screen (pauses in ambient /
         // when the wrist drops to the watch face) to save battery.
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
@@ -146,7 +145,8 @@ private fun MicropolisApp() {
     }
 
     // System back: secondary screen -> menu -> map.
-    BackHandler(enabled = screen != Screen.Map) {
+    // On the Cities screen before any city is loaded, let system back exit the app.
+    BackHandler(enabled = screen != Screen.Map && (screen != Screen.Cities || game.currentCity.isNotEmpty())) {
         screen = if (screen == Screen.Menu) Screen.Map else Screen.Menu
     }
 }
