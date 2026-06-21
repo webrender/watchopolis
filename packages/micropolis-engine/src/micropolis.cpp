@@ -1073,7 +1073,15 @@ Quad Micropolis::tickCount()
  */
 Ptr Micropolis::newPtr(int size)
 {
+#if defined(__EMSCRIPTEN__)
     return (Ptr)malloc(size);
+#else
+    // Native builds (e.g. Android NDK): the engine assumes freshly-claimed
+    // memory is zeroed, which is implicitly true under Emscripten/WASM but not
+    // with malloc(). Several structures rely on this (e.g. SimSprite::name, a
+    // std::string assigned over raw storage in newSprite()).
+    return (Ptr)calloc(1, size);
+#endif
 }
 
 
