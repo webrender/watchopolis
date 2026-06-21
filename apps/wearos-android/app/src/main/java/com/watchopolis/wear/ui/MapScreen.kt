@@ -279,7 +279,9 @@ fun MapScreen(
     RciItem(47f, "I", Color(0xFFE3D36F), demands.industrial)
 }
 
-/** A single curved HUD label centered at [anchorDeg] along the screen edge. */
+/**
+ * A single curved HUD label centered at [anchorDeg] along the screen edge.
+ */
 @Composable
 private fun HudItem(anchorDeg: Float, text: String, color: Color) {
     CurvedLayout(

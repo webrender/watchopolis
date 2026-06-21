@@ -9,15 +9,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.wear.compose.material.Chip
 import androidx.wear.compose.material.ChipDefaults
 import androidx.wear.compose.material.ListHeader
@@ -25,16 +23,14 @@ import androidx.wear.compose.material.Text
 import com.watchopolis.wear.game.Game
 
 @Composable
-fun CitiesScreen(
+fun LoadCityScreen(
     game: Game,
-    onNewRandomCity: () -> Unit,
-    onScenario: () -> Unit,
-    onLoad: () -> Unit,
+    onLoaded: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
     val scroll = rememberScrollState()
-    var saved by remember { mutableStateOf(false) }
+    val saves = remember { game.listSaves(context) }
 
     Column(
         modifier = modifier
@@ -46,33 +42,24 @@ fun CitiesScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        ListHeader { Text("Watchopolis") }
+        ListHeader { Text("Load city") }
 
-        if (game.currentCity.isNotEmpty()) {
-            Chip(
-                onClick = { game.saveGame(context); saved = true },
-                label = { Text(if (saved) "Saved ✓" else "Save game") },
-                colors = ChipDefaults.secondaryChipColors(),
-                modifier = Modifier.fillMaxWidth(),
+        if (saves.isEmpty()) {
+            Text(
+                "No saved cities",
+                color = Color.Gray,
+                fontSize = 13.sp,
+                modifier = Modifier.padding(top = 8.dp),
             )
+        } else {
+            saves.forEach { name ->
+                Chip(
+                    onClick = { game.loadSave(context, name); onLoaded() },
+                    label = { Text(name) },
+                    colors = ChipDefaults.secondaryChipColors(),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
         }
-        Chip(
-            onClick = onNewRandomCity,
-            label = { Text("New random city") },
-            colors = ChipDefaults.primaryChipColors(),
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Chip(
-            onClick = onScenario,
-            label = { Text("New city from scenario") },
-            colors = ChipDefaults.secondaryChipColors(),
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Chip(
-            onClick = onLoad,
-            label = { Text("Load city") },
-            colors = ChipDefaults.secondaryChipColors(),
-            modifier = Modifier.fillMaxWidth(),
-        )
     }
 }

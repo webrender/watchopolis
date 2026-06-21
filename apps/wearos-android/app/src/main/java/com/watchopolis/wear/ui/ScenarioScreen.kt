@@ -1,5 +1,8 @@
 package com.watchopolis.wear.ui
 
+import android.app.RemoteInput
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -22,19 +25,43 @@ import androidx.wear.compose.material.Chip
 import androidx.wear.compose.material.ChipDefaults
 import androidx.wear.compose.material.ListHeader
 import androidx.wear.compose.material.Text
+import androidx.wear.input.RemoteInputIntentHelper
+import com.watchopolis.wear.engine.CityEntry
+import com.watchopolis.wear.engine.CityCatalog
 import com.watchopolis.wear.game.Game
 
+private const val KEY_SCENARIO_NAME = "scenario_name"
+
 @Composable
-fun CitiesScreen(
+fun ScenarioScreen(
     game: Game,
-    onNewRandomCity: () -> Unit,
-    onScenario: () -> Unit,
-    onLoad: () -> Unit,
+    onStarted: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
     val scroll = rememberScrollState()
-    var saved by remember { mutableStateOf(false) }
+    var pendingScenario by remember { mutableStateOf<CityEntry?>(null) }
+
+    val nameLauncher = rememberLauncherForActivityResult(StartActivityForResult()) { result ->
+        val name = result.data
+            ?.let { RemoteInput.getResultsFromIntent(it)?.getCharSequence(KEY_SCENARIO_NAME)?.toString() }
+            ?: ""
+        pendingScenario?.let { scenario ->
+            game.loadScenario(context, scenario.asset, name.ifBlank { scenario.label })
+            onStarted()
+        }
+        pendingScenario = null
+    }
+
+    fun pickScenario(entry: CityEntry) {
+        pendingScenario = entry
+        val intent = RemoteInputIntentHelper.createActionRemoteInputIntent()
+        RemoteInputIntentHelper.putRemoteInputsExtra(
+            intent,
+            listOf(RemoteInput.Builder(KEY_SCENARIO_NAME).setLabel("City name").build()),
+        )
+        nameLauncher.launch(intent)
+    }
 
     Column(
         modifier = modifier
@@ -46,33 +73,15 @@ fun CitiesScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        ListHeader { Text("Watchopolis") }
+        ListHeader { Text("Choose scenario") }
 
-        if (game.currentCity.isNotEmpty()) {
+        CityCatalog.SCENARIOS.forEach { entry ->
             Chip(
-                onClick = { game.saveGame(context); saved = true },
-                label = { Text(if (saved) "Saved ✓" else "Save game") },
+                onClick = { pickScenario(entry) },
+                label = { Text(entry.label) },
                 colors = ChipDefaults.secondaryChipColors(),
                 modifier = Modifier.fillMaxWidth(),
             )
         }
-        Chip(
-            onClick = onNewRandomCity,
-            label = { Text("New random city") },
-            colors = ChipDefaults.primaryChipColors(),
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Chip(
-            onClick = onScenario,
-            label = { Text("New city from scenario") },
-            colors = ChipDefaults.secondaryChipColors(),
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Chip(
-            onClick = onLoad,
-            label = { Text("Load city") },
-            colors = ChipDefaults.secondaryChipColors(),
-            modifier = Modifier.fillMaxWidth(),
-        )
     }
 }

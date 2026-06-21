@@ -81,6 +81,14 @@ fun AboutScreen(modifier: Modifier = Modifier) {
             color = Color.Gray,
             size = 10,
         )
+
+        Para(
+            "VGA text-mode font from the Ultimate Oldschool PC Font Pack by VileR, " +
+                "licensed under CC BY-SA 4.0.",
+            color = Color.Gray,
+            size = 10,
+        )
+        Para("int10h.org/oldschool-pc-fonts", color = Color(0xFF9EC9FF), size = 10)
     }
 }
 

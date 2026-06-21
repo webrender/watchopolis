@@ -27,17 +27,35 @@ import com.watchopolis.wear.ui.AboutScreen
 import com.watchopolis.wear.ui.BudgetScreen
 import com.watchopolis.wear.ui.CitiesScreen
 import com.watchopolis.wear.ui.EvaluationScreen
+import com.watchopolis.wear.ui.LoadCityScreen
 import com.watchopolis.wear.ui.MapScreen
 import com.watchopolis.wear.ui.MenuScreen
 import com.watchopolis.wear.ui.NewCityScreen
+import com.watchopolis.wear.ui.ScenarioScreen
 import com.watchopolis.wear.ui.MenuTarget
+import com.watchopolis.wear.ui.VgaTypography
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 
 /** ~8 ticks/sec keeps the watch responsive without burning battery. */
 private const val TICK_DELAY_MS = 120L
 
-private enum class Screen { Map, Menu, Budget, Evaluation, Cities, NewCity, About }
+private enum class Screen { Map, Menu, Budget, Evaluation, Cities, NewCity, Scenarios, LoadCity, About }
+
+/** Cycled by the second hardware button: paused -> normal -> fast -> super fast -> paused. */
+private enum class GameSpeed(val label: String, val ticksPerInterval: Int) {
+    PAUSED("Paused", 0),
+    NORMAL("Normal", 1),
+    FAST("Fast", 2),
+    SUPER_FAST("Super Fast", 4),
+}
+
+private fun GameSpeed.next(): GameSpeed = when (this) {
+    GameSpeed.PAUSED -> GameSpeed.NORMAL
+    GameSpeed.NORMAL -> GameSpeed.FAST
+    GameSpeed.FAST -> GameSpeed.SUPER_FAST
+    GameSpeed.SUPER_FAST -> GameSpeed.PAUSED
+}
 
 class MainActivity : ComponentActivity() {
     /** Set by the UI; returns true if it handled the hardware key. */
@@ -63,6 +81,8 @@ private fun MicropolisApp() {
     val lifecycleOwner = LocalLifecycleOwner.current
     var screen by remember { mutableStateOf(Screen.Cities) }
     var message by remember { mutableStateOf<String?>(null) }
+    var speed by remember { mutableStateOf(GameSpeed.NORMAL) }
+    var speedToast by remember { mutableStateOf<String?>(null) }
 
     // Auto-dismiss the transient message banner.
     LaunchedEffect(message) {
@@ -72,13 +92,26 @@ private fun MicropolisApp() {
         }
     }
 
-    // Second hardware button (STEM) toggles the menu. Crown press (STEM_PRIMARY)
-    // is usually reserved by the system; we still try it.
+    // Auto-dismiss the speed banner, except "Paused" which stays until unpaused.
+    LaunchedEffect(speedToast, speed) {
+        if (speedToast != null && speed != GameSpeed.PAUSED) {
+            delay(3500)
+            speedToast = null
+        }
+    }
+
+    // Second hardware button (STEM_2) cycles simulation speed. The other STEM
+    // buttons toggle the menu; crown press (STEM_PRIMARY) is usually reserved
+    // by the system but we still try it.
     DisposableEffect(activity) {
         activity?.onStemKey = { code ->
             when (code) {
+                KeyEvent.KEYCODE_STEM_2 -> {
+                    speed = speed.next()
+                    speedToast = speed.label
+                    true
+                }
                 KeyEvent.KEYCODE_STEM_1,
-                KeyEvent.KEYCODE_STEM_2,
                 KeyEvent.KEYCODE_STEM_3,
                 KeyEvent.KEYCODE_STEM_PRIMARY -> {
                     screen = if (screen == Screen.Map) Screen.Menu else Screen.Map
@@ -97,7 +130,11 @@ private fun MicropolisApp() {
         // when the wrist drops to the watch face) to save battery.
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             while (isActive) {
-                game.tick()
+                // Any non-map screen (menus included) pauses the simulation; returning
+                // to the map resumes at whatever speed was last selected.
+                if (screen == Screen.Map) {
+                    repeat(speed.ticksPerInterval) { game.tick() }
+                }
                 delay(TICK_DELAY_MS)
             }
         }
@@ -109,14 +146,14 @@ private fun MicropolisApp() {
         }
     }
 
-    MaterialTheme {
+    MaterialTheme(typography = VgaTypography) {
         Box(modifier = Modifier.fillMaxSize()) {
             // Map stays composed underneath so its camera/tool state survives.
             MapScreen(
                 game = game,
                 onOpenMenu = { screen = Screen.Menu },
                 active = screen == Screen.Map,
-                message = message,
+                message = speedToast ?: message,
             )
 
             when (screen) {
@@ -135,8 +172,17 @@ private fun MicropolisApp() {
                 Screen.Evaluation -> EvaluationScreen(engine = game.engine)
                 Screen.Cities -> CitiesScreen(
                     game = game,
+                    onNewRandomCity = { screen = Screen.NewCity },
+                    onScenario = { screen = Screen.Scenarios },
+                    onLoad = { screen = Screen.LoadCity },
+                )
+                Screen.Scenarios -> ScenarioScreen(
+                    game = game,
+                    onStarted = { screen = Screen.Map },
+                )
+                Screen.LoadCity -> LoadCityScreen(
+                    game = game,
                     onLoaded = { screen = Screen.Map },
-                    onNewCity = { screen = Screen.NewCity },
                 )
                 Screen.NewCity -> NewCityScreen(game = game, onStarted = { screen = Screen.Map })
                 Screen.About -> AboutScreen()
@@ -144,9 +190,17 @@ private fun MicropolisApp() {
         }
     }
 
-    // System back: secondary screen -> menu -> map.
-    // On the Cities screen before any city is loaded, let system back exit the app.
+    // System back navigation:
+    //   Scenarios / LoadCity -> Cities
+    //   Cities (city loaded) -> Menu
+    //   Cities (no city loaded) -> exit app (handler disabled)
+    //   Menu -> Map
+    //   anything else -> Menu
     BackHandler(enabled = screen != Screen.Map && (screen != Screen.Cities || game.currentCity.isNotEmpty())) {
-        screen = if (screen == Screen.Menu) Screen.Map else Screen.Menu
+        screen = when (screen) {
+            Screen.Scenarios, Screen.LoadCity -> Screen.Cities
+            Screen.Menu -> Screen.Map
+            else -> Screen.Menu
+        }
     }
 }
