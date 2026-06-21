@@ -40,6 +40,9 @@ apps/micropolis/           SvelteKit application
     i18n/                  Translation-key helpers for UI-facing metadata
     MicropolisReactive.svelte.ts Reactive engine bridge
     TileView.svelte        Map display component
+apps/wearos-android/       Watchopolis — native Wear OS port (Kotlin/Compose + JNI,
+                           same C++ engine compiled via the Android NDK; see its
+                           own README)
 packages/tile-renderer/    Shared tile renderers (Canvas 2D, WebGL2, WebGPU, software)
     MicropolisSimulator.ts WASM engine wrapper
   cli/
@@ -427,7 +430,7 @@ For MicropolisHub-style development with MOOLLM, follow **MicropolisHub setup (C
 ## License
 
 - **Code:** [GPL-3.0](LICENSE) ([notice](MicropolisGPLLicenseNotice.md))
-- **Name:** [Micropolis Public Name License](MicropolisPublicNameLicense.md) -- "Micropolis" is a registered trademark of [Micropolis GmbH](https://www.micropolis.com) and is licensed as a courtesy of the owner.
+- **Name:** [Micropolis Public Name License](MicropolisPublicNameLicense.md) -- "Micropolis" is a registered trademark of [Micropolis GmbH](https://www.micropolis.com) and is licensed as a courtesy of the owner, for non-commercial use, and may not appear in package/domain/account names. This is why the Wear OS app in [`apps/wearos-android/`](apps/wearos-android/) is published under the name "Watchopolis" instead, with the required attribution in its own About screen.
 
 Micropolis is based on the original SimCity from Electronic Arts / Maxis, designed and written by Will Wright, and ported to Unix by Don Hopkins.
 
