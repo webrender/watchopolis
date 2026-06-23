@@ -20,7 +20,7 @@ android {
     ndkVersion = "27.0.12077973"
 
     defaultConfig {
-        applicationId = "com.watchopolis.wear"
+        applicationId = "net.webrender.watchopolis"
         minSdk = 30
         targetSdk = 35
         versionCode = 1

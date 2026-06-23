@@ -31,6 +31,11 @@ struct EngineHandle {
     jobject engineRef = nullptr;       // global ref to the Kotlin MicropolisEngine
     jmethodID onSoundMethod = nullptr;
     jmethodID onMessageMethod = nullptr;
+    // Scratch for the synchronous query tool: showZoneStatus() (fired from inside
+    // doTool) writes [category, density, landValue, crime, pollution, growth] here
+    // and sets the valid flag; nativeQueryZone reads it back immediately.
+    int zoneStatus[6] = {0};
+    bool zoneStatusValid = false;
 };
 
 // Forwards selected engine notifications to the Kotlin engine object; the rest
@@ -78,7 +83,18 @@ public:
     void newGame(Micropolis *, emscripten::val) override {}
     void saveCityAs(Micropolis *, emscripten::val, std::string) override {}
     void showBudgetAndWait(Micropolis *, emscripten::val) override {}
-    void showZoneStatus(Micropolis *, emscripten::val, int, int, int, int, int, int, int, int) override {}
+    void showZoneStatus(Micropolis *, emscripten::val, int tileCategory,
+                        int populationDensity, int landValue, int crime,
+                        int pollution, int growth, int, int) override {
+        if (parent == nullptr) return;
+        parent->zoneStatus[0] = tileCategory;
+        parent->zoneStatus[1] = populationDensity;
+        parent->zoneStatus[2] = landValue;
+        parent->zoneStatus[3] = crime;
+        parent->zoneStatus[4] = pollution;
+        parent->zoneStatus[5] = growth;
+        parent->zoneStatusValid = true;
+    }
     void simulateRobots(Micropolis *, emscripten::val) override {}
     void simulateChurch(Micropolis *, emscripten::val, int, int, int) override {}
     void startEarthquake(Micropolis *, emscripten::val, int) override {}
@@ -208,6 +224,26 @@ Java_com_watchopolis_wear_engine_MicropolisEngine_nativeDoTool(
     return static_cast<jint>(
         h->sim->doTool(static_cast<EditingTool>(tool),
                        static_cast<short>(x), static_cast<short>(y)));
+}
+
+// Run the query tool at a tile and read back the zone status it produces. The
+// engine reports the status via the (synchronous) showZoneStatus callback, which
+// stashes it on the handle; we copy [category, density, landValue, crime,
+// pollution, growth] into out6. Returns false if the tile was out of bounds (the
+// engine bails before reporting), true otherwise.
+JNIEXPORT jboolean JNICALL
+Java_com_watchopolis_wear_engine_MicropolisEngine_nativeQueryZone(
+        JNIEnv *env, jobject, jlong handle, jint x, jint y, jintArray out6) {
+    auto *h = fromHandle(handle);
+    if (h == nullptr || h->sim == nullptr || out6 == nullptr) return JNI_FALSE;
+    h->zoneStatusValid = false;
+    h->sim->doTool(static_cast<EditingTool>(5 /* TOOL_QUERY */),
+                   static_cast<short>(x), static_cast<short>(y));
+    if (!h->zoneStatusValid) return JNI_FALSE;
+    jint v[6];
+    for (int i = 0; i < 6; i++) v[i] = h->zoneStatus[i];
+    env->SetIntArrayRegion(out6, 0, 6, v);
+    return JNI_TRUE;
 }
 
 JNIEXPORT void JNICALL

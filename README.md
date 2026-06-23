@@ -10,6 +10,12 @@ C++ engine compiled to WebAssembly. Runs in any browser. Runs headless in Node.j
 - [Micropolis Web Demo 1](https://www.youtube.com/watch?v=wlHGfNlE8Os) (how the engine and UI work)
 - [SimCity Tile Sets, Space Inventory, and Cellular Automata](https://www.youtube.com/watch?v=319i7slXcbI) (tile sets, CA rules, to music by Jerry Martin)
 
+## Watchopolis
+
+![Watchopolis](apps/wearos-android/play/feature_graphic.png)
+
+**[Watchopolis](apps/wearos-android/)** is a native Wear OS port of this engine — the same C++ simulation core, compiled via the Android NDK and driven by a Kotlin/Compose UI built for the watch's round screen and crown. Build a city on your wrist: crown cycles tools, tap builds, drag pans, double-tap zooms. See [apps/wearos-android/README.md](apps/wearos-android/README.md) for build instructions and status.
+
 ## The Story
 
 Micropolis traces a line from Will Wright's SimCity (1989) through multiple platform ports, multiplayer experiments, and educational adaptations. Don Hopkins ported SimCity to Unix, built multiplayer SimCityNet (demoed at ACM InterCHI '93 in Amsterdam), and eventually convinced Electronic Arts to release the source code under GPL-3 for the One Laptop Per Child project in 2008.

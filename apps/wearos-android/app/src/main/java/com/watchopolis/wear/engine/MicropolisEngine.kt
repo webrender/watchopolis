@@ -84,6 +84,18 @@ class MicropolisEngine {
         return nativeDoTool(handle, tool, x, y)
     }
 
+    /**
+     * Run the query tool at tile (x, y) and return its zone status (category +
+     * density/value/crime/pollution/growth indices), or null if the tile is out
+     * of bounds. Query is read-only; it does not modify the map.
+     */
+    fun queryZone(x: Int, y: Int): ZoneStatus? {
+        check(handle != 0L) { "Engine not created" }
+        val out = IntArray(6)
+        if (!nativeQueryZone(handle, x, y, out)) return null
+        return ZoneStatus(out[0], out[1], out[2], out[3], out[4], out[5])
+    }
+
     fun readBudget(): Budget {
         val l = LongArray(6)
         val f = FloatArray(3)
@@ -147,6 +159,7 @@ class MicropolisEngine {
     private external fun nativeSaveCity(handle: Long, path: String)
     private external fun nativeSimTick(handle: Long)
     private external fun nativeDoTool(handle: Long, tool: Int, x: Int, y: Int): Int
+    private external fun nativeQueryZone(handle: Long, x: Int, y: Int, out6: IntArray): Boolean
     private external fun nativeGetBudget(handle: Long, out6: LongArray, out3: FloatArray)
     private external fun nativeGetEvaluation(handle: Long, out12: IntArray)
     private external fun nativeGetDemands(handle: Long, out3: FloatArray)

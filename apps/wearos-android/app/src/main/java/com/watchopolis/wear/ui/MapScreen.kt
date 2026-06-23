@@ -47,6 +47,7 @@ import androidx.wear.compose.foundation.padding
 import androidx.wear.compose.material.curvedText
 import com.watchopolis.wear.engine.GameTool
 import com.watchopolis.wear.engine.MicropolisEngine
+import com.watchopolis.wear.engine.ZoneStatus
 import com.watchopolis.wear.game.Game
 import com.watchopolis.wear.render.TileAtlas
 import com.watchopolis.wear.render.TileColors
@@ -158,6 +159,7 @@ private const val ROTARY_STEP = 48f
 fun MapScreen(
     game: Game,
     onOpenMenu: () -> Unit,
+    onQuery: (ZoneStatus) -> Unit,
     active: Boolean,
     message: String? = null,
     modifier: Modifier = Modifier,
@@ -218,12 +220,22 @@ fun MapScreen(
                     onTap = { offset ->
                         val (tx, ty) = tileAt(offset, size.width, size.height)
                         if (tx in 0 until MicropolisEngine.WORLD_W && ty in 0 until MicropolisEngine.WORLD_H) {
-                            val result = game.engine.doTool(GameTool.ALL[toolIndex].tool, tx, ty)
-                            view.performHapticFeedback(
-                                if (result > 0) HapticFeedbackConstants.CONFIRM
-                                else HapticFeedbackConstants.REJECT,
-                            )
-                            game.refresh()
+                            if (GameTool.ALL[toolIndex] == GameTool.QUERY) {
+                                // Query is read-only: report the tile, don't build.
+                                val status = game.engine.queryZone(tx, ty)
+                                view.performHapticFeedback(
+                                    if (status != null) HapticFeedbackConstants.CONFIRM
+                                    else HapticFeedbackConstants.REJECT,
+                                )
+                                if (status != null) onQuery(status)
+                            } else {
+                                val result = game.engine.doTool(GameTool.ALL[toolIndex].tool, tx, ty)
+                                view.performHapticFeedback(
+                                    if (result > 0) HapticFeedbackConstants.CONFIRM
+                                    else HapticFeedbackConstants.REJECT,
+                                )
+                                game.refresh()
+                            }
                         }
                     },
                 )

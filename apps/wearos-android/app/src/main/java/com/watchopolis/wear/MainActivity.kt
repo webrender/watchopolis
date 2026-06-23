@@ -21,6 +21,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.wear.compose.material.MaterialTheme
 import com.watchopolis.wear.engine.MessageText
+import com.watchopolis.wear.engine.ZoneStatus
 import com.watchopolis.wear.game.Game
 import com.watchopolis.wear.game.SoundManager
 import com.watchopolis.wear.ui.AboutScreen
@@ -32,6 +33,7 @@ import com.watchopolis.wear.ui.MapScreen
 import com.watchopolis.wear.ui.MenuScreen
 import com.watchopolis.wear.ui.NewCityScreen
 import com.watchopolis.wear.ui.ScenarioScreen
+import com.watchopolis.wear.ui.ZoneStatusScreen
 import com.watchopolis.wear.ui.MenuTarget
 import com.watchopolis.wear.ui.VgaTypography
 import kotlinx.coroutines.delay
@@ -40,7 +42,7 @@ import kotlinx.coroutines.isActive
 /** ~8 ticks/sec keeps the watch responsive without burning battery. */
 private const val TICK_DELAY_MS = 120L
 
-private enum class Screen { Map, Menu, Budget, Evaluation, Cities, NewCity, Scenarios, LoadCity, About }
+private enum class Screen { Map, Menu, Budget, Evaluation, Cities, NewCity, Scenarios, LoadCity, ZoneStatus, About }
 
 /** Cycled by the second hardware button: paused -> normal -> fast -> super fast -> paused. */
 private enum class GameSpeed(val label: String, val ticksPerInterval: Int) {
@@ -80,6 +82,7 @@ private fun MicropolisApp() {
     val soundManager = remember { SoundManager(context) }
     val lifecycleOwner = LocalLifecycleOwner.current
     var screen by remember { mutableStateOf(Screen.Cities) }
+    var zoneStatus by remember { mutableStateOf<ZoneStatus?>(null) }
     var message by remember { mutableStateOf<String?>(null) }
     var speed by remember { mutableStateOf(GameSpeed.NORMAL) }
     var speedToast by remember { mutableStateOf<String?>(null) }
@@ -152,6 +155,7 @@ private fun MicropolisApp() {
             MapScreen(
                 game = game,
                 onOpenMenu = { screen = Screen.Menu },
+                onQuery = { zoneStatus = it; screen = Screen.ZoneStatus },
                 active = screen == Screen.Map,
                 message = speedToast ?: message,
             )
@@ -185,6 +189,7 @@ private fun MicropolisApp() {
                     onLoaded = { screen = Screen.Map },
                 )
                 Screen.NewCity -> NewCityScreen(game = game, onStarted = { screen = Screen.Map })
+                Screen.ZoneStatus -> zoneStatus?.let { ZoneStatusScreen(it) }
                 Screen.About -> AboutScreen()
             }
         }
@@ -194,12 +199,12 @@ private fun MicropolisApp() {
     //   Scenarios / LoadCity -> Cities
     //   Cities (city loaded) -> Menu
     //   Cities (no city loaded) -> exit app (handler disabled)
-    //   Menu -> Map
+    //   Menu / ZoneStatus -> Map
     //   anything else -> Menu
     BackHandler(enabled = screen != Screen.Map && (screen != Screen.Cities || game.currentCity.isNotEmpty())) {
         screen = when (screen) {
             Screen.Scenarios, Screen.LoadCity -> Screen.Cities
-            Screen.Menu -> Screen.Map
+            Screen.Menu, Screen.ZoneStatus -> Screen.Map
             else -> Screen.Menu
         }
     }
