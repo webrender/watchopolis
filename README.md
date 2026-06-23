@@ -1,4 +1,10 @@
-# Micropolis
+# Watchopolis
+
+![Watchopolis](apps/wearos-android/play/feature_graphic.png)
+
+**[Watchopolis](apps/wearos-android/)** is a native Wear OS port of Micropolis — the same C++ simulation core, compiled via the Android NDK and driven by a Kotlin/Compose UI built for the watch's round screen and crown. Build a city on your wrist: crown cycles tools, tap builds, drag pans, double-tap zooms. See [apps/wearos-android/README.md](apps/wearos-android/README.md) for build instructions and status.
+
+## Micropolis
 
 **Open source city simulation, based on the original SimCity Classic by Will Wright.**
 
@@ -9,12 +15,6 @@ C++ engine compiled to WebAssembly. Runs in any browser. Runs headless in Node.j
 **Video demos:**
 - [Micropolis Web Demo 1](https://www.youtube.com/watch?v=wlHGfNlE8Os) (how the engine and UI work)
 - [SimCity Tile Sets, Space Inventory, and Cellular Automata](https://www.youtube.com/watch?v=319i7slXcbI) (tile sets, CA rules, to music by Jerry Martin)
-
-## Watchopolis
-
-![Watchopolis](apps/wearos-android/play/feature_graphic.png)
-
-**[Watchopolis](apps/wearos-android/)** is a native Wear OS port of this engine — the same C++ simulation core, compiled via the Android NDK and driven by a Kotlin/Compose UI built for the watch's round screen and crown. Build a city on your wrist: crown cycles tools, tap builds, drag pans, double-tap zooms. See [apps/wearos-android/README.md](apps/wearos-android/README.md) for build instructions and status.
 
 ## The Story
 
