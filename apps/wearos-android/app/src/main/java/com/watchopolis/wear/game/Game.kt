@@ -44,6 +44,9 @@ class Game {
     private fun savePath(context: Context, name: String = currentCity): File =
         File(savesDir(context), "${name.ifBlank { "quicksave" }}.cty")
 
+    private fun prefs(context: Context) =
+        context.getSharedPreferences("watchopolis", Context.MODE_PRIVATE)
+
     fun listSaves(context: Context): List<String> {
         val dir = savesDir(context)
         if (!dir.exists()) return emptyList()
@@ -55,6 +58,20 @@ class Game {
 
     fun saveGame(context: Context) {
         engine.saveCity(savePath(context).absolutePath)
+        prefs(context).edit().putString(KEY_LAST_CITY, currentCity).apply()
+    }
+
+    /**
+     * Re-open the most recently played city if its save still exists, returning
+     * true when a city was loaded. Used to resume the previous session on launch.
+     */
+    fun resumeLastCity(context: Context): Boolean {
+        val name = prefs(context).getString(KEY_LAST_CITY, null)
+            ?.takeIf { it.isNotBlank() } ?: return false
+        val f = savePath(context, name)
+        if (!f.exists()) return false
+        loadPath(f.absolutePath, name)
+        return true
     }
 
     fun loadSave(context: Context, name: String) {
@@ -117,4 +134,8 @@ class Game {
     }
 
     fun destroy() = engine.destroy()
+
+    private companion object {
+        const val KEY_LAST_CITY = "lastCity"
+    }
 }

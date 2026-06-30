@@ -39,7 +39,8 @@ phases are complete:
 - **Crown** — cycle the active tool (bulldoze, road, rail, zones, …)
 - **Tap** — apply the active tool at that tile
 - **Drag** — pan the map
-- **Double-tap** — cycle zoom (medium → close → overview)
+- **Double-tap** — cycle zoom: medium → close → closest → overview (then wraps)
+- **Triple-tap** — cycle game speed (pause → normal → fast → super-fast → pause)
 - **Long-press** — open the menu (Budget, Evaluation, Cities, About)
 - **Swipe right / back** — leave a screen
 

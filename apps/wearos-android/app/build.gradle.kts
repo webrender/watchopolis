@@ -23,8 +23,8 @@ android {
         applicationId = "net.webrender.watchopolis"
         minSdk = 30
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.1"
 
         ndk {
             // armeabi-v7a: most physical Wear OS watches are 32-bit (e.g. Pixel Watch).

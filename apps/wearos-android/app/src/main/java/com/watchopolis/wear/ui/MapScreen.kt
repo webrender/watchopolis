@@ -17,6 +17,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -51,6 +52,9 @@ import com.watchopolis.wear.engine.ZoneStatus
 import com.watchopolis.wear.game.Game
 import com.watchopolis.wear.render.TileAtlas
 import com.watchopolis.wear.render.TileColors
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.floor
@@ -142,24 +146,37 @@ internal fun DrawScope.drawEdgeVignette() {
     )
 }
 
-// Zoom presets (screen px per tile). Double-tap cycles: medium -> close ->
-// overview -> medium, so the first double-tap zooms in.
-// medium -> close -> closer -> overview -> (wrap) medium
-private val ZOOM_PRESETS = floatArrayOf(14f, 22f, 32f, 7f)
+// Zoom presets (screen px per tile). Double-tap cycles in array order, so the
+// first double-tap zooms in and the last step pops out to the overview:
+// medium(14) -> close(32) -> closest(48) -> overview(7) -> (wrap) medium
+private val ZOOM_PRESETS = floatArrayOf(14f, 32f, 48f, 7f)
 private const val DEFAULT_ZOOM_INDEX = 0
+
+// How long to wait after a tap for a follow-up tap before acting, so single
+// (build), double (zoom), and triple (speed) taps can be told apart.
+private const val MULTITAP_WINDOW_MS = 260L
+
+/** Mutable tap-sequence bookkeeping; kept off Compose state to avoid recomposition. */
+private class TapTracker {
+    var count = 0
+    var job: Job? = null
+    var tileX = 0
+    var tileY = 0
+}
 
 // Accumulated crown rotation needed to step to the next/previous tool.
 private const val ROTARY_STEP = 48f
 
 /**
  * The interactive map. Crown cycles the active tool, tap builds, drag pans,
- * double-tap cycles zoom, long-press opens the menu.
+ * double-tap cycles zoom, triple-tap cycles game speed, long-press opens the menu.
  */
 @Composable
 fun MapScreen(
     game: Game,
     onOpenMenu: () -> Unit,
     onQuery: (ZoneStatus) -> Unit,
+    onCycleSpeed: () -> Unit,
     active: Boolean,
     message: String? = null,
     modifier: Modifier = Modifier,
@@ -181,6 +198,9 @@ fun MapScreen(
     // Re-claim crown focus whenever the map becomes the active screen again.
     LaunchedEffect(active) { if (active) focusRequester.requestFocus() }
 
+    val tapScope = rememberCoroutineScope()
+    val taps = remember { TapTracker() }
+
     val tile = atlas?.tilePx ?: 16
 
     fun tileAt(screen: Offset, canvasW: Int, canvasH: Int): Pair<Int, Int> {
@@ -188,6 +208,28 @@ fun MapScreen(
         val originY = canvasH / 2f - camY * tilePx
         return floor((screen.x - originX) / tilePx).toInt() to
             floor((screen.y - originY) / tilePx).toInt()
+    }
+
+    // A single tap (after the multi-tap window) builds with the active tool, or
+    // queries the tile when the Query tool is selected.
+    fun buildAt(tx: Int, ty: Int) {
+        if (tx !in 0 until MicropolisEngine.WORLD_W || ty !in 0 until MicropolisEngine.WORLD_H) return
+        if (GameTool.ALL[toolIndex] == GameTool.QUERY) {
+            // Query is read-only: report the tile, don't build.
+            val status = game.engine.queryZone(tx, ty)
+            view.performHapticFeedback(
+                if (status != null) HapticFeedbackConstants.CONFIRM
+                else HapticFeedbackConstants.REJECT,
+            )
+            if (status != null) onQuery(status)
+        } else {
+            val result = game.engine.doTool(GameTool.ALL[toolIndex].tool, tx, ty)
+            view.performHapticFeedback(
+                if (result > 0) HapticFeedbackConstants.CONFIRM
+                else HapticFeedbackConstants.REJECT,
+            )
+            game.refresh()
+        }
     }
 
     Canvas(
@@ -211,31 +253,34 @@ fun MapScreen(
             .focusRequester(focusRequester)
             .focusable()
             .pointerInput(Unit) {
+                // Count taps within a short window so we can tell apart single
+                // (build), double (zoom), and triple (cycle speed) taps. The
+                // pending action fires once no further tap arrives in time.
                 detectTapGestures(
-                    onLongPress = { onOpenMenu() },
-                    onDoubleTap = {
-                        zoomIndex = (zoomIndex + 1) % ZOOM_PRESETS.size
-                        tilePx = ZOOM_PRESETS[zoomIndex]
+                    onLongPress = {
+                        taps.job?.cancel()
+                        taps.count = 0
+                        onOpenMenu()
                     },
                     onTap = { offset ->
-                        val (tx, ty) = tileAt(offset, size.width, size.height)
-                        if (tx in 0 until MicropolisEngine.WORLD_W && ty in 0 until MicropolisEngine.WORLD_H) {
-                            if (GameTool.ALL[toolIndex] == GameTool.QUERY) {
-                                // Query is read-only: report the tile, don't build.
-                                val status = game.engine.queryZone(tx, ty)
-                                view.performHapticFeedback(
-                                    if (status != null) HapticFeedbackConstants.CONFIRM
-                                    else HapticFeedbackConstants.REJECT,
-                                )
-                                if (status != null) onQuery(status)
-                            } else {
-                                val result = game.engine.doTool(GameTool.ALL[toolIndex].tool, tx, ty)
-                                view.performHapticFeedback(
-                                    if (result > 0) HapticFeedbackConstants.CONFIRM
-                                    else HapticFeedbackConstants.REJECT,
-                                )
-                                game.refresh()
+                        if (taps.count == 0) {
+                            val (tx, ty) = tileAt(offset, size.width, size.height)
+                            taps.tileX = tx
+                            taps.tileY = ty
+                        }
+                        taps.count++
+                        taps.job?.cancel()
+                        taps.job = tapScope.launch {
+                            delay(MULTITAP_WINDOW_MS)
+                            when (taps.count) {
+                                1 -> buildAt(taps.tileX, taps.tileY)
+                                2 -> {
+                                    zoomIndex = (zoomIndex + 1) % ZOOM_PRESETS.size
+                                    tilePx = ZOOM_PRESETS[zoomIndex]
+                                }
+                                else -> onCycleSpeed()
                             }
+                            taps.count = 0
                         }
                     },
                 )

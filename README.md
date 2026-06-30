@@ -2,7 +2,7 @@
 
 ![Watchopolis](apps/wearos-android/play/feature_graphic.png)
 
-**[Watchopolis](apps/wearos-android/)** is a native Wear OS port of Micropolis — the same C++ simulation core, compiled via the Android NDK and driven by a Kotlin/Compose UI built for the watch's round screen and crown. Build a city on your wrist: crown cycles tools, tap builds, drag pans, double-tap zooms. See [apps/wearos-android/README.md](apps/wearos-android/README.md) for build instructions and status.
+**[Watchopolis](apps/wearos-android/)** is a native Wear OS port of Micropolis — the same C++ simulation core, compiled via the Android NDK and driven by a Kotlin/Compose UI built for the watch's round screen and crown. Build a city on your wrist: crown cycles tools, tap builds, drag pans, double-tap cycles zoom (medium → close → closest → overview), and triple-tap cycles game speed. See [apps/wearos-android/README.md](apps/wearos-android/README.md) for build instructions and status.
 
 ## Micropolis
 

@@ -17,6 +17,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.wear.compose.material.MaterialTheme
@@ -81,7 +82,12 @@ private fun MicropolisApp() {
     val game = remember { Game() }
     val soundManager = remember { SoundManager(context) }
     val lifecycleOwner = LocalLifecycleOwner.current
-    var screen by remember { mutableStateOf(Screen.Cities) }
+    // Resume the previous session straight to the map if a last-played city's
+    // save still exists; otherwise fall back to the Cities screen. Done in the
+    // initial remember so there's no flash of the Cities screen on launch.
+    var screen by remember {
+        mutableStateOf(if (game.resumeLastCity(context)) Screen.Map else Screen.Cities)
+    }
     var zoneStatus by remember { mutableStateOf<ZoneStatus?>(null) }
     var message by remember { mutableStateOf<String?>(null) }
     var speed by remember { mutableStateOf(GameSpeed.NORMAL) }
@@ -148,6 +154,18 @@ private fun MicropolisApp() {
             soundManager.release()
         }
     }
+    // Auto-save whenever the app leaves the foreground. On Wear OS, dropping the
+    // wrist / entering ambient / going to the watch face fires ON_PAUSE but often
+    // not ON_STOP, so ON_PAUSE is the reliable "user left" signal to save on.
+    DisposableEffect(lifecycleOwner, game) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_PAUSE && game.currentCity.isNotEmpty()) {
+                game.saveGame(context)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     MaterialTheme(typography = VgaTypography) {
         Box(modifier = Modifier.fillMaxSize()) {
@@ -156,6 +174,10 @@ private fun MicropolisApp() {
                 game = game,
                 onOpenMenu = { screen = Screen.Menu },
                 onQuery = { zoneStatus = it; screen = Screen.ZoneStatus },
+                onCycleSpeed = {
+                    speed = speed.next()
+                    speedToast = speed.label
+                },
                 active = screen == Screen.Map,
                 message = speedToast ?: message,
             )
